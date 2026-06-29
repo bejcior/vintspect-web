@@ -8,10 +8,9 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:#07181A;color:#E8F4F2;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:20px}
-.logo{font-size:24px;font-weight:800}
-.logo b{color:#29BFA0}
+.logo{font-size:24px;font-weight:800}.logo b{color:#29BFA0}
 .subtitle{font-size:14px;color:#5A8A84}
-#clerk-signin{min-width:360px}
+#clerk-signin{min-width:360px;min-height:300px}
 </style>
 </head>
 <body>
@@ -19,51 +18,37 @@ body{font-family:'Inter',sans-serif;background:#07181A;color:#E8F4F2;display:fle
 <p class="subtitle">Zaloguj się żeby zacząć sprawdzać autentyczność</p>
 <div id="clerk-signin"></div>
 
-<script
-  async
-  crossorigin="anonymous"
-  data-clerk-publishable-key="pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk"
-  src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
-  type="text/javascript"
-></script>
+<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
 <script>
-const BACKEND = 'https://vintspect-api.onrender.com';
-const LS_URLS = {
-  pack_1: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175656',
-  pack_3: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175658',
-  pack_5: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175659',
-};
-
-window.addEventListener('load', async () => {
-  await window.__clerk_frontend_api || window.Clerk?.load();
-  const clerk = window.Clerk;
-  if (!clerk) { console.error('Clerk not loaded'); return; }
+async function initClerk() {
+  const clerk = new window.Clerk('pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk');
+  await clerk.load();
 
   if (clerk.user) {
-    await sendTokenToExtension(clerk);
+    await sendToken(clerk);
     return;
   }
 
   clerk.mountSignIn(document.getElementById('clerk-signin'));
 
   clerk.addListener(async ({ user }) => {
-    if (user) await sendTokenToExtension(clerk);
+    if (user) await sendToken(clerk);
   });
-});
+}
 
-async function sendTokenToExtension(clerk) {
+async function sendToken(clerk) {
   const token = await clerk.session.getToken();
   const userId = clerk.user.id;
-
   if (window.opener) {
     window.opener.postMessage({ type: 'VINTSPECT_AUTH', token, userId }, '*');
     document.body.innerHTML = '<div style="text-align:center;padding:80px 40px"><h2 style="color:#29BFA0;font-family:Inter,sans-serif;font-size:24px">✓ Zalogowano!</h2><p style="color:#5A8A84;margin-top:12px;font-family:Inter,sans-serif">Możesz zamknąć tę kartę</p></div>';
     setTimeout(() => window.close(), 2000);
-    return;
+  } else {
+    window.location.href = '/account.html';
   }
-
-  window.location.href = '/account.html';
 }
+
+window.addEventListener('load', initClerk);
 </script>
 </body>
 </html>
