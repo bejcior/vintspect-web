@@ -18,24 +18,11 @@ body{font-family:'Inter',sans-serif;background:#07181A;color:#E8F4F2;display:fle
 <p class="subtitle">Zaloguj się żeby zacząć sprawdzać autentyczność</p>
 <div id="clerk-signin"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
+<script
+  data-clerk-publishable-key="pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk"
+  src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+></script>
 <script>
-async function initClerk() {
-  const clerk = new window.Clerk('pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk');
-  await clerk.load();
-
-  if (clerk.user) {
-    await sendToken(clerk);
-    return;
-  }
-
-  clerk.mountSignIn(document.getElementById('clerk-signin'));
-
-  clerk.addListener(async ({ user }) => {
-    if (user) await sendToken(clerk);
-  });
-}
-
 async function sendToken(clerk) {
   const token = await clerk.session.getToken();
   const userId = clerk.user.id;
@@ -48,7 +35,12 @@ async function sendToken(clerk) {
   }
 }
 
-window.addEventListener('load', initClerk);
+document.addEventListener('clerk:loaded', async () => {
+  const clerk = window.Clerk;
+  if (clerk.user) { await sendToken(clerk); return; }
+  clerk.mountSignIn(document.getElementById('clerk-signin'));
+  clerk.addListener(async ({ user }) => { if (user) await sendToken(clerk); });
+});
 </script>
 </body>
 </html>
