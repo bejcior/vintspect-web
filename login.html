@@ -35,12 +35,35 @@ async function sendToken(clerk) {
   }
 }
 
-document.addEventListener('clerk:loaded', async () => {
-  const clerk = window.Clerk;
+async function initClerk() {
+  // Poczekaj az Clerk bedzie gotowy
+  let clerk = window.Clerk;
+  if (!clerk) { console.error('Brak Clerk'); return; }
+
+  // Jesli juz zaladowany
+  if (clerk.loaded) {
+    if (clerk.user) { await sendToken(clerk); return; }
+    clerk.mountSignIn(document.getElementById('clerk-signin'));
+    clerk.addListener(async ({ user }) => { if (user) await sendToken(clerk); });
+    return;
+  }
+
+  // Jesli nie zaladowany - zaladuj
+  await clerk.load({
+    publishableKey: 'pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk'
+  });
+
   if (clerk.user) { await sendToken(clerk); return; }
   clerk.mountSignIn(document.getElementById('clerk-signin'));
   clerk.addListener(async ({ user }) => { if (user) await sendToken(clerk); });
-});
+}
+
+// Uruchom po zaladowaniu strony
+if (document.readyState === 'complete') {
+  initClerk();
+} else {
+  window.addEventListener('load', initClerk);
+}
 </script>
 </body>
 </html>
