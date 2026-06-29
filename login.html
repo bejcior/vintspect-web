@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VintSpect — Logowanie</title>
-<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -20,27 +19,27 @@ body{font-family:'Inter',sans-serif;background:#07181A;color:#E8F4F2;display:fle
 <p class="subtitle">Zaloguj się żeby zacząć sprawdzać autentyczność</p>
 <div id="clerk-signin"></div>
 
+<script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk"
+  src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+  type="text/javascript"
+></script>
 <script>
-const CLERK_KEY = 'pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk';
 const BACKEND = 'https://vintspect-api.onrender.com';
-const EXT_ID = location.hash.replace('#', '') || '';
+const LS_URLS = {
+  pack_1: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175656',
+  pack_3: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175658',
+  pack_5: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175659',
+};
 
 window.addEventListener('load', async () => {
-  // Poczekaj az Clerk sie zaladuje
-  let attempts = 0;
-  while (!window.Clerk && attempts < 20) {
-    await new Promise(r => setTimeout(r, 200));
-    attempts++;
-  }
-  if (!window.Clerk) {
-    document.body.innerHTML += '<p style="color:#f87171;text-align:center;font-family:Inter,sans-serif">Błąd ładowania. Odśwież stronę.</p>';
-    return;
-  }
-  await window.Clerk.load({ publishableKey: CLERK_KEY });
+  await window.__clerk_frontend_api || window.Clerk?.load();
   const clerk = window.Clerk;
+  if (!clerk) { console.error('Clerk not loaded'); return; }
 
   if (clerk.user) {
-    // Juz zalogowany - pobierz token i wyslij do rozszerzenia
     await sendTokenToExtension(clerk);
     return;
   }
@@ -56,27 +55,13 @@ async function sendTokenToExtension(clerk) {
   const token = await clerk.session.getToken();
   const userId = clerk.user.id;
 
-  // Wyslij do rozszerzenia Chrome
-  if (typeof chrome !== 'undefined' && chrome.runtime) {
-    try {
-      chrome.runtime.sendMessage(EXT_ID, {
-        type: 'VINTSPECT_AUTH',
-        token,
-        userId
-      }, () => {
-        document.body.innerHTML = '<div style="text-align:center;padding:40px"><h2 style="color:#29BFA0;font-family:Inter,sans-serif">✓ Zalogowano!</h2><p style="color:#5A8A84;margin-top:8px;font-family:Inter,sans-serif">Możesz zamknąć tę kartę i wrócić do VintSpect</p></div>';
-      });
-    } catch(e) {}
-  }
-
-  // Fallback - window.opener (gdy otworzone jako popup)
   if (window.opener) {
     window.opener.postMessage({ type: 'VINTSPECT_AUTH', token, userId }, '*');
-    window.close();
+    document.body.innerHTML = '<div style="text-align:center;padding:80px 40px"><h2 style="color:#29BFA0;font-family:Inter,sans-serif;font-size:24px">✓ Zalogowano!</h2><p style="color:#5A8A84;margin-top:12px;font-family:Inter,sans-serif">Możesz zamknąć tę kartę</p></div>';
+    setTimeout(() => window.close(), 2000);
     return;
   }
 
-  // Przekieruj do panelu konta
   window.location.href = '/account.html';
 }
 </script>
