@@ -26,6 +26,16 @@ const BACKEND = 'https://vintspect-api.onrender.com';
 const EXT_ID = location.hash.replace('#', '') || '';
 
 window.addEventListener('load', async () => {
+  // Poczekaj az Clerk sie zaladuje
+  let attempts = 0;
+  while (!window.Clerk && attempts < 20) {
+    await new Promise(r => setTimeout(r, 200));
+    attempts++;
+  }
+  if (!window.Clerk) {
+    document.body.innerHTML += '<p style="color:#f87171;text-align:center;font-family:Inter,sans-serif">Błąd ładowania. Odśwież stronę.</p>';
+    return;
+  }
   await window.Clerk.load({ publishableKey: CLERK_KEY });
   const clerk = window.Clerk;
 
