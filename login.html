@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VintSpect — Logowanie</title>
+<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#07181A;color:#E8F4F2;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:20px}
+.logo{font-size:24px;font-weight:800}
+.logo b{color:#29BFA0}
+.subtitle{font-size:14px;color:#5A8A84}
+#clerk-signin{min-width:360px}
+</style>
+</head>
+<body>
+<div class="logo">Vint<b>Spect</b></div>
+<p class="subtitle">Zaloguj się żeby zacząć sprawdzać autentyczność</p>
+<div id="clerk-signin"></div>
+
+<script>
+const CLERK_KEY = 'pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk';
+const BACKEND = 'https://vintspect-api.onrender.com';
+const EXT_ID = location.hash.replace('#', '') || '';
+
+window.addEventListener('load', async () => {
+  await window.Clerk.load({ publishableKey: CLERK_KEY });
+  const clerk = window.Clerk;
+
+  if (clerk.user) {
+    // Juz zalogowany - pobierz token i wyslij do rozszerzenia
+    await sendTokenToExtension(clerk);
+    return;
+  }
+
+  clerk.mountSignIn(document.getElementById('clerk-signin'));
+
+  clerk.addListener(async ({ user }) => {
+    if (user) await sendTokenToExtension(clerk);
+  });
+});
+
+async function sendTokenToExtension(clerk) {
+  const token = await clerk.session.getToken();
+  const userId = clerk.user.id;
+
+  // Wyslij do rozszerzenia Chrome
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    try {
+      chrome.runtime.sendMessage(EXT_ID, {
+        type: 'VINTSPECT_AUTH',
+        token,
+        userId
+      }, () => {
+        document.body.innerHTML = '<div style="text-align:center;padding:40px"><h2 style="color:#29BFA0;font-family:Inter,sans-serif">✓ Zalogowano!</h2><p style="color:#5A8A84;margin-top:8px;font-family:Inter,sans-serif">Możesz zamknąć tę kartę i wrócić do VintSpect</p></div>';
+      });
+    } catch(e) {}
+  }
+
+  // Fallback - window.opener (gdy otworzone jako popup)
+  if (window.opener) {
+    window.opener.postMessage({ type: 'VINTSPECT_AUTH', token, userId }, '*');
+    window.close();
+    return;
+  }
+
+  // Przekieruj do panelu konta
+  window.location.href = '/account.html';
+}
+</script>
+</body>
+</html>

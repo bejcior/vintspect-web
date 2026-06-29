@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VintSpect — Moje konto</title>
+<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#07181A;color:#E8F4F2;min-height:100vh}
+nav{display:flex;align-items:center;justify-content:space-between;padding:20px 48px;border-bottom:1px solid rgba(255,255,255,.05)}
+.nav-logo{font-size:20px;font-weight:800}
+.nav-logo b{color:#29BFA0}
+.main{max-width:700px;margin:48px auto;padding:0 24px}
+.card{background:#0F3338;border-radius:16px;padding:28px;margin-bottom:20px;border:1px solid rgba(255,255,255,.05)}
+.card-title{font-size:12px;font-weight:600;color:#2D5550;text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px}
+.credits-big{font-size:48px;font-weight:800;color:#29BFA0}
+.credits-sub{font-size:14px;color:#5A8A84;margin-top:4px}
+.packages{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.pkg{background:#07181A;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:border-color .15s;text-decoration:none;display:block}
+.pkg:hover{border-color:#29BFA0}
+.pkg.popular{border-color:#29BFA0}
+.pkg-name{font-size:13px;color:#5A8A84;margin-bottom:4px}
+.pkg-price{font-size:20px;font-weight:700;color:#E8F4F2}
+.pkg-save{font-size:11px;color:#29BFA0;margin-top:2px}
+.btn-logout{background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 16px;color:#5A8A84;font-size:13px;cursor:pointer;font-family:inherit}
+.email{font-size:14px;color:#aaa}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-logo">Vint<b>Spect</b></div>
+  <button class="btn-logout" id="logout-btn">Wyloguj</button>
+</nav>
+<div class="main">
+  <div class="card">
+    <div class="card-title">Konto</div>
+    <div class="email" id="user-email">Ładowanie...</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Twoje analizy</div>
+    <div class="credits-big" id="credits">—</div>
+    <div class="credits-sub">dostępnych analiz</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Kup więcej analiz</div>
+    <div class="packages">
+      <a id="pkg-1" href="#" class="pkg" target="_blank">
+        <div class="pkg-name">1 analiza</div>
+        <div class="pkg-price">1,49€</div>
+      </a>
+      <a id="pkg-3" href="#" class="pkg popular" target="_blank">
+        <div class="pkg-name">3 analizy</div>
+        <div class="pkg-price">3,49€</div>
+        <div class="pkg-save">Oszczędzasz 0,98€</div>
+      </a>
+      <a id="pkg-5" href="#" class="pkg" target="_blank">
+        <div class="pkg-name">5 analiz</div>
+        <div class="pkg-price">4,99€</div>
+        <div class="pkg-save">Oszczędzasz 2,46€</div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLERK_KEY = 'pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk';
+const BACKEND = 'https://vintspect-api.onrender.com';
+const LS_URLS = {
+  pack_1: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175656',
+  pack_3: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175658',
+  pack_5: 'https://vintspect.lemonsqueezy.com/checkout/buy/1175659',
+};
+
+window.addEventListener('load', async () => {
+  await window.Clerk.load({ publishableKey: CLERK_KEY });
+  const clerk = window.Clerk;
+
+  if (!clerk.user) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  document.getElementById('user-email').textContent = clerk.user.primaryEmailAddress?.emailAddress || '';
+
+  const token = await clerk.session.getToken();
+  const userId = clerk.user.id;
+
+  // Pobierz kredyty
+  try {
+    const r = await fetch(BACKEND + '/account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await r.json();
+    document.getElementById('credits').textContent = data.credits || 0;
+  } catch(e) {
+    document.getElementById('credits').textContent = '—';
+  }
+
+  // Pakiety z user ID
+  document.getElementById('pkg-1').href = LS_URLS.pack_1 + '?checkout[custom][user_id]=' + userId;
+  document.getElementById('pkg-3').href = LS_URLS.pack_3 + '?checkout[custom][user_id]=' + userId;
+  document.getElementById('pkg-5').href = LS_URLS.pack_5 + '?checkout[custom][user_id]=' + userId;
+
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    await clerk.signOut();
+    window.location.href = '/';
+  });
+});
+</script>
+</body>
+</html>
