@@ -11,68 +11,63 @@ body{font-family:'Inter',sans-serif;background:#07181A;color:#E8F4F2;display:fle
 .logo{font-size:24px;font-weight:800}.logo b{color:#29BFA0}
 .subtitle{font-size:14px;color:#5A8A84}
 #clerk-signin{min-width:360px;min-height:300px}
-#debug{position:fixed;bottom:10px;left:10px;right:10px;background:#0F3338;padding:10px;border-radius:8px;font-size:11px;color:#5A8A84;font-family:monospace;max-height:150px;overflow-y:auto}
 </style>
 </head>
 <body>
 <div class="logo">Vint<b>Spect</b></div>
-<p class="subtitle">Zaloguj się żeby zacząć sprawdzać autentyczność</p>
+<p class="subtitle" id="subtitle">Zaloguj się żeby zacząć sprawdzać autentyczność</p>
 <div id="clerk-signin"></div>
-<div id="debug"></div>
 
 <script
   data-clerk-publishable-key="pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk"
   src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
 ></script>
 <script>
-function log(msg) {
-  console.log('[VS]', msg);
-  const d = document.getElementById('debug');
-  d.textContent += msg + '\n';
-}
+const isSilent = location.hash === '#silent';
 
 async function sendToken(clerk) {
-  log('sendToken wywolane');
   const token = await clerk.session.getToken();
   const userId = clerk.user.id;
-  log('token pobrany, userId=' + userId);
-  log('window.opener = ' + (window.opener ? 'ISTNIEJE' : 'BRAK'));
 
   if (window.opener) {
-    log('Wysylam postMessage do opener...');
     window.opener.postMessage({ type: 'VINTSPECT_AUTH', token, userId }, '*');
-    log('Wyslano! Zamykam za 3 sekundy...');
-    document.body.innerHTML += '<h2 style="color:#29BFA0;text-align:center;margin-top:20px">✓ Zalogowano! Token wysłany.</h2>';
-    setTimeout(() => window.close(), 3000);
+    if (isSilent) {
+      window.close();
+    } else {
+      document.body.innerHTML = '<div style="text-align:center;padding:80px 40px"><h2 style="color:#29BFA0;font-family:Inter,sans-serif;font-size:24px">✓ Zalogowano!</h2><p style="color:#5A8A84;margin-top:12px;font-family:Inter,sans-serif">Możesz zamknąć tę kartę</p></div>';
+      setTimeout(() => window.close(), 2000);
+    }
   } else {
-    log('Brak opener - przekierowuje do /account.html');
     window.location.href = '/account.html';
   }
 }
 
 async function initClerk() {
-  log('initClerk start');
   let clerk = window.Clerk;
-  if (!clerk) { log('BLAD: brak window.Clerk'); return; }
-  log('Clerk obecny, loaded=' + clerk.loaded);
+  if (!clerk) return;
 
   if (!clerk.loaded) {
-    log('Laduje Clerk...');
     await clerk.load({
       publishableKey: 'pk_test_cGF0aWVudC1zdGluZ3JheS02NC5jbGVyay5hY2NvdW50cy5kZXYk'
     });
-    log('Clerk zaladowany');
   }
 
-  log('clerk.user = ' + (clerk.user ? 'ZALOGOWANY' : 'NIEZALOGOWANY'));
+  if (clerk.user) {
+    await sendToken(clerk);
+    return;
+  }
 
-  if (clerk.user) { await sendToken(clerk); return; }
+  if (isSilent) {
+    // Tryb cichy ale uzytkownik niezalogowany - zamknij i poinformuj
+    if (window.opener) {
+      window.opener.postMessage({ type: 'VINTSPECT_AUTH_FAILED' }, '*');
+    }
+    window.close();
+    return;
+  }
 
   clerk.mountSignIn(document.getElementById('clerk-signin'));
-  log('Formularz zamontowany');
-
   clerk.addListener(async ({ user }) => {
-    log('Listener wywolany, user=' + (user ? 'TAK' : 'NIE'));
     if (user) await sendToken(clerk);
   });
 }
